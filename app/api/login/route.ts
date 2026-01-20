@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { createSessionToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
 
-  // 1. Check university/company domain
-  const allowedDomains = ["fau.de"]; // ⬅️ change to your real domains
-
-  const validDomain = !!email && allowedDomains.some((d) => email.endsWith(`@${d}`));
+  const allowedDomains = ["fau.de"];
+  const validDomain =
+    !!email && allowedDomains.some((d) => String(email).toLowerCase().endsWith(`@${d}`));
 
   if (!validDomain) {
     return NextResponse.json(
@@ -15,21 +17,55 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 2. SUPER SIMPLE password check (for demo purposes)
-  const DEMO_PASSWORD = "cranberry123"; // or read from env if you want
+  const normalizedEmail = String(email).toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
 
-  if (password !== DEMO_PASSWORD) {
+  if (!user || user.status !== "ACTIVE") {
     return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
   }
 
-  // 3. If valid → set a basic session cookie
-  const res = NextResponse.json({ success: true });
+  const ok = await bcrypt.compare(String(password ?? ""), user.passwordHash);
+  if (!ok) {
+    return NextResponse.json({ error: "Invalid credentials." }, { status: 401 });
+  }
 
-  res.cookies.set("orchid_session", email, {
+  // Create session in DB
+  const token = createSessionToken();
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 8); // 8 hours
+
+  await prisma.session.create({
+    data: {
+      token,
+      userId: user.id,
+      expiresAt,
+    },
+  });
+
+  const res = NextResponse.json({
+    success: true,
+    user: {
+      email: user.email,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    },
+  });
+
+  // ✅ THIS WAS MISSING: set session cookie
+  res.cookies.set("orchid_session", token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 8, // 8 hours
+    maxAge: 60 * 60 * 8,
+    // secure: process.env.NODE_ENV === "production",
+  });
+
+  // Force password change flag cookie (optional)
+  res.cookies.set("orchid_force_pw_change", user.mustChangePassword ? "1" : "0", {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 8,
+    // secure: process.env.NODE_ENV === "production",
   });
 
   return res;
