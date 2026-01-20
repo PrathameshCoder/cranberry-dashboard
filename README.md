@@ -1,36 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍒 Cranberry Dashboard
 
-## Getting Started
+A secure, role-based internal knowledge management dashboard built with **Next.js App Router**, **Prisma**, and **MongoDB**.  
+Designed for university/company use with controlled access, HR onboarding, and enterprise-grade authentication.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## ✨ Key Features
+
+### 🔐 Authentication & Security
+- Database-backed email + password authentication
+- Secure password hashing using **bcrypt**
+- HttpOnly cookie-based sessions
+- Middleware-protected routes
+- Company/university email domain restriction
+- Forced password change on first login
+
+### 🧑‍💼 Role-Based Access Control (RBAC)
+- Roles supported: **ADMIN**, **HR**, **EMPLOYEE**
+- API-level role enforcement
+- HR/Admin-only user management APIs
+- Disabled users are fully blocked from access
+
+### 👥 User Management
+- HR/Admin can:
+  - Create new users
+  - Assign roles
+  - Reset passwords
+  - Disable accounts
+- New users must update password on first login
+
+### 📚 Knowledge Management
+- Authenticated users can view knowledge items
+- Create new knowledge entries with:
+  - Title, summary, content, tags
+  - Impact level (LOW / MEDIUM / HIGH)
+- Author attribution and timestamps
+
+### 🧪 Developer Experience
+- Dev-only admin seed endpoint (safely guarded)
+- Clean API structure using Next.js App Router
+- Prisma schema designed for scalability
+- Feature-branch-based Git workflow
+
+---
+
+## 🛠 Tech Stack
+
+- **Frontend**: Next.js 16 (App Router), React, TypeScript
+- **UI**: shadcn/ui
+- **Backend**: Next.js API Routes
+- **Database**: MongoDB
+- **ORM**: Prisma
+- **Auth**: Custom session-based auth
+- **Styling**: Tailwind CSS
+
+---
+
+## 📂 Project Structure (Simplified)
+
+```text
+app/
+├── api/
+│   ├── auth/
+│   ├── users/
+│   ├── knowledge/
+│   └── dev/seed-admin/
+├── dashboard/
+├── admin/users/
+├── account/change-password/
+lib/
+├── auth.ts
+├── prisma.ts
+middleware.ts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🚀 Getting Started (Local Development)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Install dependencies
+```bash
+pnpm install
+```
 
-## Learn More
+2. Configure environment variables
+```
+DATABASE_URL=
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
+DEV_SEED_SECRET=
+```
 
-To learn more about Next.js, take a look at the following resources:
+3. Run Development Server
+```
+pnpm dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔒 Security Notes
 
-## Deploy on Vercel
+- All sensitive routes are protected by middleware and API checks
+- Dev-only routes are blocked in production
+- No secrets are committed to the repository
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📌 Current Status
+- Core authentication, RBAC, and onboarding flows are complete
+- Stable and ready for UI expansion and feature development
+
+---
+
+## 🔜 Planned Enhancements
+- HR/Admin user management UI
+- Knowledge edit/delete permissions
+- Account/profile page enhancements
+- Search functionality
+
+--- 
+
+## 👤 Maintainer
+Built and maintained as part of a collaborative academic software project.
