@@ -32,6 +32,7 @@ import {
   IconLayoutColumns,
   IconLoader,
   IconPlus,
+  IconSearch,
   IconTrendingUp,
 } from "@tabler/icons-react"
 import {
@@ -115,6 +116,26 @@ export const schema = z.object({
   limit: z.string(),
   reviewer: z.string(),
 })
+
+type ImpactLevel = "LOW" | "MEDIUM" | "HIGH"
+
+function normalizeValue(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function getImpactLevel(item: z.infer<typeof schema>): ImpactLevel {
+  const limitValue = Number.parseInt(item.limit, 10)
+  if (!Number.isFinite(limitValue)) {
+    return "LOW"
+  }
+  if (limitValue <= 10) {
+    return "LOW"
+  }
+  if (limitValue <= 20) {
+    return "MEDIUM"
+  }
+  return "HIGH"
+}
 
 // Create a separate component for the drag handle
 function DragHandle({ id }: { id: number }) {
@@ -342,6 +363,11 @@ export function DataTable({
   data: z.infer<typeof schema>[]
 }) {
   const [data, setData] = React.useState(() => initialData)
+  const [query, setQuery] = React.useState("")
+  const [selectedTags, setSelectedTags] = React.useState<string[]>([])
+  const [selectedImpacts, setSelectedImpacts] = React.useState<ImpactLevel[]>(
+    []
+  )
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
@@ -360,13 +386,42 @@ export function DataTable({
     useSensor(KeyboardSensor, {})
   )
 
-  const dataIds = React.useMemo<UniqueIdentifier[]>(
-    () => data?.map(({ id }) => id) || [],
-    [data]
-  )
+  const tagOptions = React.useMemo(() => {
+    const tags = new Set<string>()
+    data.forEach((item) => tags.add(item.type))
+    return Array.from(tags).sort((a, b) => a.localeCompare(b))
+  }, [data])
+
+  const normalizedQuery = React.useMemo(() => normalizeValue(query), [query])
+
+  const filteredData = React.useMemo(() => {
+    return data.filter((item) => {
+      const haystack = normalizeValue(
+        [
+          item.header,
+          item.type,
+          item.status,
+          item.reviewer,
+          item.target,
+          item.limit,
+        ].join(" ")
+      )
+      const matchesQuery =
+        normalizedQuery.length === 0 || haystack.includes(normalizedQuery)
+
+      const matchesTags =
+        selectedTags.length === 0 || selectedTags.includes(item.type)
+
+      const impact = getImpactLevel(item)
+      const matchesImpact =
+        selectedImpacts.length === 0 || selectedImpacts.includes(impact)
+
+      return matchesQuery && matchesTags && matchesImpact
+    })
+  }, [data, normalizedQuery, selectedTags, selectedImpacts])
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: {
       sorting,
@@ -390,13 +445,31 @@ export function DataTable({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
+  const visibleRowIds = table
+    .getRowModel()
+    .rows.map((row) => row.original.id)
+  const dataIds = visibleRowIds as UniqueIdentifier[]
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (active && over && active.id !== over.id) {
-      setData((data) => {
-        const oldIndex = dataIds.indexOf(active.id)
-        const newIndex = dataIds.indexOf(over.id)
-        return arrayMove(data, oldIndex, newIndex)
+      const oldIndex = visibleRowIds.indexOf(active.id as number)
+      const newIndex = visibleRowIds.indexOf(over.id as number)
+      if (oldIndex === -1 || newIndex === -1) {
+        return
+      }
+      const reorderedVisibleIds = arrayMove(visibleRowIds, oldIndex, newIndex)
+      setData((current) => {
+        const currentById = new Map(current.map((item) => [item.id, item]))
+        const visibleSet = new Set(visibleRowIds)
+        let visibleIndex = 0
+        return current.map((item) => {
+          if (!visibleSet.has(item.id)) {
+            return item
+          }
+          const nextId = reorderedVisibleIds[visibleIndex++]
+          return currentById.get(nextId) ?? item
+        })
       })
     }
   }
@@ -479,6 +552,104 @@ export function DataTable({
         value="outline"
         className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
       >
+        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-sm">
+            <IconSearch className="text-muted-foreground pointer-events-none absolute left-3 top-2.5 size-4" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search knowledge items..."
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Tags
+                  {selectedTags.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {selectedTags.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {tagOptions.length === 0 ? (
+                  <DropdownMenuItem disabled>No tags available</DropdownMenuItem>
+                ) : (
+                  tagOptions.map((tag) => (
+                    <DropdownMenuCheckboxItem
+                      key={tag}
+                      checked={selectedTags.includes(tag)}
+                      onCheckedChange={(checked) => {
+                        setSelectedTags((prev) =>
+                          checked
+                            ? Array.from(new Set([...prev, tag]))
+                            : prev.filter((value) => value !== tag)
+                        )
+                      }}
+                    >
+                      {tag}
+                    </DropdownMenuCheckboxItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  Impact
+                  {selectedImpacts.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {selectedImpacts.length}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {(["LOW", "MEDIUM", "HIGH"] as ImpactLevel[]).map((level) => (
+                  <DropdownMenuCheckboxItem
+                    key={level}
+                    checked={selectedImpacts.includes(level)}
+                    onCheckedChange={(checked) => {
+                      setSelectedImpacts((prev) =>
+                        checked
+                          ? Array.from(new Set([...prev, level]))
+                          : prev.filter((value) => value !== level)
+                      )
+                    }}
+                  >
+                    {level}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQuery("")
+                setSelectedTags([])
+                setSelectedImpacts([])
+              }}
+              disabled={
+                query.length === 0 &&
+                selectedTags.length === 0 &&
+                selectedImpacts.length === 0
+              }
+            >
+              Clear filters
+            </Button>
+          </div>
+        </div>
+        <p className="text-muted-foreground text-sm">
+          Search matches case-insensitive substrings across header, type,
+          status, reviewer, target, and limit. Tags come from each item&apos;s
+          type and multiple selections are treated as OR. Impact is derived from
+          the numeric limit value (0-10 = LOW, 11-20 = MEDIUM, 21+ = HIGH) and
+          also matches any selected level.
+        </p>
         <div className="overflow-hidden rounded-lg border">
           <DndContext
             collisionDetection={closestCenter}
