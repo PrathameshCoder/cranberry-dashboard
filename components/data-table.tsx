@@ -223,6 +223,18 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     ),
   },
   {
+    id: "impact",
+    header: "Impact",
+    cell: ({ row }) => {
+      const impact = getImpactLevel(row.original)
+      return (
+        <Badge variant="outline" className="text-muted-foreground px-1.5">
+          {impact}
+        </Badge>
+      )
+    },
+  },
+  {
     accessorKey: "target",
     header: () => <div className="w-full text-right">Target</div>,
     cell: ({ row }) => (
