@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { IconCirclePlusFilled, IconMail, type Icon } from "@tabler/icons-react"
 
@@ -44,6 +45,7 @@ export function NavMain({
     title: string
     url: string
     icon?: Icon
+    badge?: string
   }[]
 }) {
   const router = useRouter()
@@ -234,9 +236,16 @@ export function NavMain({
           <SidebarMenu>
             {items.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton tooltip={item.title}>
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
+                <SidebarMenuButton asChild tooltip={item.title}>
+                  <Link href={item.url} className="flex items-center gap-2">
+                    {item.icon && <item.icon />}
+                    <span>{item.title}</span>
+                    {item.badge && (
+                      <span className="ml-auto rounded-full bg-sidebar-accent px-2 py-0.5 text-[10px] font-medium text-sidebar-accent-foreground">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}

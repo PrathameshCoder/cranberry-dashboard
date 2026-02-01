@@ -5,6 +5,7 @@ import { GalleryVerticalEnd } from "lucide-react"
 import {
   IconCamera,
   IconChartBar,
+  IconCirclePlusFilled,
   IconDashboard,
   IconDatabase,
   IconFileAi,
@@ -43,28 +44,24 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails,
+      title: "Metadata Search",
+      url: "/search",
+      icon: IconSearch,
     },
     {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar,
+      title: "Contribute",
+      url: "/contribute",
+      icon: IconCirclePlusFilled,
+      badge: "New",
     },
     {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
+      title: "Admin",
+      url: "/admin",
+      icon: IconSettings,
     },
   ],
   navClouds: [
@@ -118,33 +115,28 @@ const data = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
+      url: "/settings",
       icon: IconSettings,
     },
     {
       title: "Get Help",
-      url: "#",
+      url: "/help",
       icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
     },
   ],
   documents: [
     {
-      name: "Data Library",
+      name: "GitHub Repos",
       url: "#",
       icon: IconDatabase,
     },
     {
-      name: "Reports",
+      name: "Jira Issues",
       url: "#",
       icon: IconReport,
     },
     {
-      name: "Word Assistant",
+      name: "Confluence Docs",
       url: "#",
       icon: IconFileWord,
     },
@@ -171,7 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+        <NavDocuments items={data.documents} label="External Tools" />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
