@@ -1,13 +1,14 @@
 import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
+import { getRoleForEmail, type Role } from "@/lib/permissions"
 
 export const COOKIE_NAME = "orchid_session"
 
 export type AuthUser = {
   id: string
   email: string
-  role: "ADMIN" | "HR" | "EMPLOYEE"
+  role: Role
   mustChangePassword: boolean
 }
 
@@ -45,7 +46,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return {
     id: session.user.id,
     email: session.user.email,
-    role: session.user.role,
+    role: getRoleForEmail(session.user.email, session.user.role as Role),
     mustChangePassword: session.user.mustChangePassword,
   }
 }
@@ -55,7 +56,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  */
 export function requireRole(
   user: AuthUser | null,
-  allowed: Array<"ADMIN" | "HR" | "EMPLOYEE">
+  allowed: Array<Role>
 ) {
   if (!user) {
     return { ok: false, status: 401, message: "Unauthorized" }

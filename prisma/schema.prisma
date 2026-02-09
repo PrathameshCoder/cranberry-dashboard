@@ -30,6 +30,10 @@ model User {
   name   String?
   avatar String?
 
+  // Optional HR profile fields (demo)
+  team      String?
+  birthdate DateTime?
+
   passwordHash       String
   role               Role       @default(EMPLOYEE)
   status             UserStatus @default(ACTIVE)

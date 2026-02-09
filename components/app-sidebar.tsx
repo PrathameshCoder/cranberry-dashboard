@@ -20,6 +20,7 @@ import {
   IconUsers,
 } from "@tabler/icons-react"
 
+import { canSeeHrPortal, type Role } from "@/lib/permissions"
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -155,6 +156,7 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [user, setUser] = React.useState(defaultUser)
   const [refreshKey, setRefreshKey] = React.useState(0)
+  const [role, setRole] = React.useState<Role>("EMPLOYEE")
 
   React.useEffect(() => {
     async function fetchUser() {
@@ -162,11 +164,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         const res = await fetch("/api/me", { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
+          const roleFromApi: Role =
+            (data.role as Role | undefined) ??
+            (data.user?.role as Role | undefined) ??
+            "EMPLOYEE"
           setUser({
             name: data.user?.name || data.user?.email?.split("@")[0] || "User",
             email: data.user?.email || "Unknown",
             avatar: data.user?.avatar || "",
           })
+          setRole(roleFromApi)
         }
       } catch (err) {
         console.error("Failed to fetch user:", err)
@@ -174,6 +181,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
     fetchUser()
   }, [refreshKey])
+
+  const mainNavItems = React.useMemo(() => {
+    const base = [...data.navMain]
+    const effectiveRole: Role = role ?? "EMPLOYEE"
+    if (canSeeHrPortal(effectiveRole)) {
+      base.push({
+        title: "HR Portal",
+        url: "/dashboard/hr",
+        icon: IconUsers,
+      })
+    }
+    return base
+  }, [role])
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -193,7 +213,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={mainNavItems} />
         <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>

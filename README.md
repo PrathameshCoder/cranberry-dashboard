@@ -20,6 +20,28 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment variables
+
+Create a `.env` file in the project root with at least:
+
+```bash
+DATABASE_URL="mongodb+srv://..."
+
+# Single seeded admin (used by scripts/create-admis.ts)
+ADMIN_EMAIL="admin@example.com"
+ADMIN_PASSWORD="change-me"
+
+# Demo role allowlists (comma‑separated)
+ADMIN_EMAILS="admin@example.com,another.admin@example.com"
+HR_EMAILS="hr1@example.com,hr2@example.com"
+```
+
+Role resolution in the app is demo-friendly:
+
+- If the logged-in email is in `ADMIN_EMAILS` (or matches `ADMIN_EMAIL`) → role `ADMIN`
+- Else if the email is in `HR_EMAILS` → role `HR`
+- Else → role `EMPLOYEE`
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

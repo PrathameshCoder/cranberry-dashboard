@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2 } from "lucide-react"
 import { KnowledgeViewDialog, type KnowledgeItem, type KnowledgeAttachment } from "./knowledge-view-dialog"
+import { canDelete } from "@/lib/permissions"
+import type { Role } from "@/lib/permissions"
 
 type ApiItem = KnowledgeItem
 
@@ -24,7 +26,7 @@ export function DashboardFeed() {
 
   const [myEmail, setMyEmail] = useState<string | null>(null)
   const [myUserId, setMyUserId] = useState<string | null>(null)
-  const [myRole, setMyRole] = useState<"ADMIN" | "HR" | "EMPLOYEE" | null>(null)
+  const [myRole, setMyRole] = useState<Role | null>(null)
 
   const hrEmail = "hr@company.com" // demo value; can be env-fed later
 
@@ -35,8 +37,12 @@ export function DashboardFeed() {
         const res = await fetch("/api/me", { cache: "no-store" })
         if (res.ok) {
           const data = await res.json()
-          setMyEmail(data.user?.email || null)
-          setMyRole(data.user?.role || null)
+          const roleFromApi: Role | null =
+            (data.role as Role | undefined) ??
+            (data.user?.role as Role | undefined) ??
+            null
+          setMyEmail(data.user?.email || data.email || null)
+          setMyRole(roleFromApi)
           // Note: /api/me doesn't return userId, but we can derive it from email if needed
         }
       } catch (err) {
@@ -159,12 +165,9 @@ export function DashboardFeed() {
     <>
       <div className="space-y-4">
         {items.map((item) => {
-          // Show delete button if:
-          // 1. User is ADMIN or HR, OR
-          // 2. User is the author of the item
-          const isAdminOrHR = myRole === "ADMIN" || myRole === "HR"
-          const isAuthor = myEmail && item.author?.email && myEmail.toLowerCase() === item.author.email.toLowerCase()
-          const canDelete = isAdminOrHR || isAuthor
+          // Only ADMINs may see the delete button in the UI.
+          const effectiveRole: Role = myRole ?? "EMPLOYEE"
+          const canShowDelete = canDelete(effectiveRole)
 
           return (
             <Card
@@ -189,8 +192,8 @@ export function DashboardFeed() {
                       {item.impact}
                     </Badge>
 
-                    {/* Delete button for admins/HR or item authors */}
-                    {canDelete ? (
+                    {/* Delete button – ADMIN only (API enforces its own rules) */}
+                    {canShowDelete ? (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -198,7 +201,7 @@ export function DashboardFeed() {
                           e.stopPropagation()
                           handleDelete(item.id)
                         }}
-                        title={isAuthor ? "Delete your item" : "Delete (admin/HR)"}
+                        title="Delete (admin only)"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -240,7 +243,13 @@ export function DashboardFeed() {
         })}
       </div>
 
-      <KnowledgeViewDialog open={open} onOpenChange={setOpen} item={selected} hrEmail={hrEmail} />
+      <KnowledgeViewDialog
+        open={open}
+        onOpenChange={setOpen}
+        item={selected}
+        hrEmail={hrEmail}
+        role={myRole ?? "EMPLOYEE"}
+      />
     </>
   )
 }

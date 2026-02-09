@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
+import { canDownloadDirect, canRequestDownload, type Role } from "@/lib/permissions"
 
 export type KnowledgeAttachment =
   | { kind: "image"; name: string; url?: string; previewUrl?: string; mimeType?: string }
@@ -44,15 +45,22 @@ export function KnowledgeViewDialog({
   onOpenChange,
   item,
   hrEmail,
+  role,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: KnowledgeItem | null
   hrEmail?: string
+  role?: Role | null
 }) {
   if (!item) return null
 
   const impact = (item.impact ?? "LOW").toUpperCase() as "HIGH" | "MEDIUM" | "LOW"
+
+  // Defensive default – treat undefined role as EMPLOYEE in the UI
+  const effectiveRole: Role = role ?? "EMPLOYEE"
+  const showDirectDownload = canDownloadDirect(effectiveRole)
+  const showRequestDownload = canRequestDownload(effectiveRole)
 
   const mailTo = hrEmail
     ? `mailto:${hrEmail}?subject=${encodeURIComponent(
@@ -115,6 +123,7 @@ export function KnowledgeViewDialog({
                   {item.attachments.map((a, idx) => {
                     const attachmentName = a.name || (a as any).fileName || "Unknown"
                     const kind = getAttachmentKind(a)
+                    const downloadUrl = (a as any).url || (a as any).previewUrl
                     return (
                       <div key={idx} className="rounded-lg border p-3">
                         <div className="flex items-center justify-between gap-3">
@@ -140,23 +149,39 @@ export function KnowledgeViewDialog({
                         ) : null}
 
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {/* Demo button – no real download */}
-                          <Button variant="outline" size="sm" asChild={!!mailTo}>
-                            {mailTo ? (
-                              <a href={mailTo}>Request download</a>
-                            ) : (
-                              <span>Request download</span>
-                            )}
-                          </Button>
+                          {showRequestDownload && (
+                            <Button variant="outline" size="sm" asChild={!!mailTo}>
+                              {mailTo ? (
+                                <a href={mailTo}>Request download</a>
+                              ) : (
+                                <span>Request download</span>
+                              )}
+                            </Button>
+                          )}
 
-                          <Button variant="ghost" size="sm" disabled>
-                            Download (restricted)
-                          </Button>
+                          {showDirectDownload && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              asChild={!!downloadUrl}
+                              disabled={!downloadUrl}
+                            >
+                              {downloadUrl ? (
+                                <a href={downloadUrl} download={attachmentName}>
+                                  Download
+                                </a>
+                              ) : (
+                                <span>Download</span>
+                              )}
+                            </Button>
+                          )}
                         </div>
 
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Note: Downloads are restricted. Use "Request download" for access.
-                        </p>
+                        {showRequestDownload && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Note: Downloads are restricted. Use &quot;Request download&quot; for access.
+                          </p>
+                        )}
                       </div>
                     )
                   })}

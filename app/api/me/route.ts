@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getRoleForEmail, isAdmin, type Role } from "@/lib/permissions";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -22,13 +23,19 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  const role = getRoleForEmail(dbUser.email, dbUser.role as Role);
+  const adminFlag = isAdmin(role);
+
   return NextResponse.json({
     user: {
       email: dbUser.email,
       name: dbUser.name || dbUser.email.split("@")[0],
       avatar: dbUser.avatar || "",
-      role: dbUser.role,
+      role,
       mustChangePassword: dbUser.mustChangePassword,
     },
+    email: dbUser.email,
+    role,
+    isAdmin: adminFlag,
   });
 }
