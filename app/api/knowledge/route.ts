@@ -89,7 +89,7 @@ export async function POST(req: Request) {
     if (impactValue && typeof impactValue === "string") {
       impactRaw = impactValue.trim().toUpperCase()
     }
-    
+
     // Validate impact, default to LOW if invalid
     if (!["LOW", "MEDIUM", "HIGH"].includes(impactRaw)) {
       impactRaw = "LOW"
