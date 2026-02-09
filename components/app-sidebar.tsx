@@ -34,12 +34,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+const defaultUser = {
+  name: "User",
+  email: "Loading...",
+  avatar: "",
+}
+
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Dashboard",
@@ -152,6 +153,28 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [user, setUser] = React.useState(defaultUser)
+  const [refreshKey, setRefreshKey] = React.useState(0)
+
+  React.useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch("/api/me", { cache: "no-store" })
+        if (res.ok) {
+          const data = await res.json()
+          setUser({
+            name: data.user?.name || data.user?.email?.split("@")[0] || "User",
+            email: data.user?.email || "Unknown",
+            avatar: data.user?.avatar || "",
+          })
+        }
+      } catch (err) {
+        console.error("Failed to fetch user:", err)
+      }
+    }
+    fetchUser()
+  }, [refreshKey])
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -175,7 +198,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser 
+          user={user} 
+          onAvatarUpdate={() => setRefreshKey((k) => k + 1)}
+        />
       </SidebarFooter>
     </Sidebar>
   )

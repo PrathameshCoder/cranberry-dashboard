@@ -57,6 +57,7 @@ export function NavMain({
     tags: "",
     impact: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH",
   })
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -64,24 +65,27 @@ export function NavMain({
     setLoading(true)
 
     try {
-      // Convert comma-separated tags to array
-      const tagsArray = formData.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean)
+      // Create FormData for file uploads
+      const formDataToSend = new FormData()
+      formDataToSend.append("title", formData.title)
+      formDataToSend.append("summary", formData.summary)
+      if (formData.content) {
+        formDataToSend.append("content", formData.content)
+      }
+      formDataToSend.append("tags", formData.tags)
+      formDataToSend.append("impact", formData.impact)
+
+      // Add files if any selected
+      const files = fileInputRef.current?.files
+      if (files) {
+        for (let i = 0; i < files.length; i++) {
+          formDataToSend.append("files", files[i])
+        }
+      }
 
       const response = await fetch("/api/knowledge", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: formData.title,
-          summary: formData.summary,
-          content: formData.content || null,
-          tags: tagsArray,
-          impact: formData.impact,
-        }),
+        body: formDataToSend,
       })
 
       if (!response.ok) {
@@ -99,6 +103,9 @@ export function NavMain({
         tags: "",
         impact: "MEDIUM",
       })
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
       router.refresh()
     } catch (err) {
       setError("Network error. Please try again.")
@@ -123,7 +130,7 @@ export function NavMain({
                     <span>Quick Create</span>
                   </SidebarMenuButton>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-2xl w-[95vw] max-h-[85vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create Knowledge Item</DialogTitle>
                     <DialogDescription>
@@ -131,7 +138,7 @@ export function NavMain({
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleSubmit}>
-                    <FieldGroup>
+                    <FieldGroup className="space-y-4">
                       <Field>
                         <FieldLabel htmlFor="title">Title *</FieldLabel>
                         <Input
@@ -169,37 +176,53 @@ export function NavMain({
                         />
                         <FieldDescription>Optional detailed content</FieldDescription>
                       </Field>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field>
+                          <FieldLabel htmlFor="tags">Tags</FieldLabel>
+                          <Input
+                            id="tags"
+                            value={formData.tags}
+                            onChange={(e) =>
+                              setFormData({ ...formData, tags: e.target.value })
+                            }
+                            placeholder="tag1, tag2, tag3"
+                          />
+                          <FieldDescription>
+                            Comma-separated tags
+                          </FieldDescription>
+                        </Field>
+                        <Field>
+                          <FieldLabel htmlFor="impact">Impact *</FieldLabel>
+                          <Select
+                            value={formData.impact}
+                            onValueChange={(value: "LOW" | "MEDIUM" | "HIGH") =>
+                              setFormData({ ...formData, impact: value })
+                            }
+                          >
+                            <SelectTrigger id="impact">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="LOW">Low</SelectItem>
+                              <SelectItem value="MEDIUM">Medium</SelectItem>
+                              <SelectItem value="HIGH">High</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                      </div>
                       <Field>
-                        <FieldLabel htmlFor="tags">Tags</FieldLabel>
+                        <FieldLabel htmlFor="files">Attachments</FieldLabel>
                         <Input
-                          id="tags"
-                          value={formData.tags}
-                          onChange={(e) =>
-                            setFormData({ ...formData, tags: e.target.value })
-                          }
-                          placeholder="tag1, tag2, tag3"
+                          id="files"
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          accept="image/*,application/pdf"
+                          className="cursor-pointer"
                         />
                         <FieldDescription>
-                          Comma-separated tags
+                          Optional: Upload images or PDFs (max 20MB per file)
                         </FieldDescription>
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="impact">Impact *</FieldLabel>
-                        <Select
-                          value={formData.impact}
-                          onValueChange={(value: "LOW" | "MEDIUM" | "HIGH") =>
-                            setFormData({ ...formData, impact: value })
-                          }
-                        >
-                          <SelectTrigger id="impact">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="LOW">Low</SelectItem>
-                            <SelectItem value="MEDIUM">Medium</SelectItem>
-                            <SelectItem value="HIGH">High</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </Field>
                       {error && (
                         <p className="text-sm text-red-500">{error}</p>

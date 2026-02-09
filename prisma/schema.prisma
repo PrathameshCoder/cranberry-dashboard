@@ -25,21 +25,22 @@ enum UserStatus {
 }
 
 model User {
-  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
-  email              String          @unique
-  name               String?
-  avatar             String?
+  id     String  @id @default(auto()) @map("_id") @db.ObjectId
+  email  String  @unique
+  name   String?
+  avatar String?
 
   passwordHash       String
-  role               Role            @default(EMPLOYEE)
-  status             UserStatus      @default(ACTIVE)
-  mustChangePassword Boolean         @default(true)
+  role               Role       @default(EMPLOYEE)
+  status             UserStatus @default(ACTIVE)
+  mustChangePassword Boolean    @default(true)
 
-  sessions           Session[]
-  knowledgeItems     KnowledgeItem[]
+  sessions Session[]
 
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  knowledgeItems KnowledgeItem[] @relation("UserKnowledgeItems")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Session {
@@ -55,15 +56,18 @@ model Session {
 }
 
 model KnowledgeItem {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  title     String
-  summary   String
-  content   String?
-  tags      String[] @default([])
-  impact    Impact
+  id      String   @id @default(auto()) @map("_id") @db.ObjectId
+  title   String
+  summary String
+  content String?
+  tags    String[] @default([])
+  impact  Impact   @default(LOW)
 
-  authorId  String   @db.ObjectId
-  author    User     @relation(fields: [authorId], references: [id])
+  authorId String @db.ObjectId
+
+  author User @relation("UserKnowledgeItems", fields: [authorId], references: [id])
+
+  attachments Attachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -71,4 +75,23 @@ model KnowledgeItem {
   @@index([createdAt])
   @@index([impact])
   @@index([authorId])
+}
+
+model Attachment {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // relation back to KnowledgeItem
+  itemId String        @db.ObjectId
+  item   KnowledgeItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  fileName String
+  mimeType String
+  size     Int
+
+  // Demo-friendly: store file inside Mongo as base64
+  dataBase64 String
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
 }

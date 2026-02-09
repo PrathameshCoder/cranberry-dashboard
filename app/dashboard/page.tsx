@@ -26,10 +26,10 @@ export default function Page() {
           <div className="@container/main flex flex-1 flex-col gap-6 px-4 py-6 lg:px-6">
             {/* Page title */}
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Knowledge Feed
               </h1>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-xs sm:text-sm">
                 Latest knowledge shared across the organization
               </p>
             </div>
