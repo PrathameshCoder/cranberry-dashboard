@@ -106,6 +106,8 @@ export function NavMain({
       if (fileInputRef.current) {
         fileInputRef.current.value = ""
       }
+
+      window.dispatchEvent(new Event("orchid:knowledge-updated"))
       router.refresh()
     } catch (err) {
       setError("Network error. Please try again.")

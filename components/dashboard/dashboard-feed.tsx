@@ -1,12 +1,26 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Trash2 } from "lucide-react"
-import { KnowledgeViewDialog, type KnowledgeItem, type KnowledgeAttachment } from "./knowledge-view-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  KnowledgeViewDialog,
+  type KnowledgeItem,
+  type KnowledgeAttachment,
+} from "./knowledge-view-dialog"
 import { canDelete } from "@/lib/permissions"
 import type { Role } from "@/lib/permissions"
 
@@ -22,13 +36,18 @@ export function DashboardFeed() {
   const [selected, setSelected] = useState<ApiItem | null>(null)
 
   // demo attachments (client-only preview)
-  const [localAttachmentsById, setLocalAttachmentsById] = useState<Record<string, KnowledgeAttachment[]>>({})
+  const [localAttachmentsById, setLocalAttachmentsById] = useState<
+    Record<string, KnowledgeAttachment[]>
+  >({})
 
   const [myEmail, setMyEmail] = useState<string | null>(null)
-  const [myUserId, setMyUserId] = useState<string | null>(null)
   const [myRole, setMyRole] = useState<Role | null>(null)
 
   const hrEmail = "hr@company.com" // demo value; can be env-fed later
+
+  // Delete confirmation dialog (ADMIN)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   // Fetch current user info
   useEffect(() => {
@@ -43,7 +62,6 @@ export function DashboardFeed() {
             null
           setMyEmail(data.user?.email || data.email || null)
           setMyRole(roleFromApi)
-          // Note: /api/me doesn't return userId, but we can derive it from email if needed
         }
       } catch (err) {
         console.error("Failed to fetch user info:", err)
@@ -65,8 +83,6 @@ export function DashboardFeed() {
       }
       const data = await res.json()
       setItems(data.items || [])
-      // optional: if your API includes current user email somewhere, set it.
-      // For now, best-effort: derive from first author (demo) – replace later with /api/me.
       setMyEmail((prev) => prev ?? null)
     } catch (err) {
       console.error("Error fetching knowledge feed:", err)
@@ -76,12 +92,25 @@ export function DashboardFeed() {
     }
   }
 
+  // Initial load
   useEffect(() => {
     refresh()
   }, [])
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this knowledge item?")) return
+  // Listen for global knowledge updates (e.g., created from sidebar)
+  useEffect(() => {
+    const onKnowledgeUpdated = () => {
+      refresh()
+    }
+
+    window.addEventListener("orchid:knowledge-updated", onKnowledgeUpdated)
+    return () => {
+      window.removeEventListener("orchid:knowledge-updated", onKnowledgeUpdated)
+    }
+  }, [])
+
+  // Delete (confirmed via UI dialog)
+  async function handleDeleteConfirmed(id: string) {
     const res = await fetch(`/api/knowledge/${id}`, { method: "DELETE" })
     if (!res.ok) {
       const t = await res.text().catch(() => "")
@@ -92,36 +121,35 @@ export function DashboardFeed() {
   }
 
   function openItem(item: ApiItem) {
-    // Transform API attachments to include 'kind' property
     const transformedAttachments = item.attachments?.map((att: any) => {
-      // If already has kind (from local preview), use it
       if (att.kind) return att
-      
-      // Derive kind from mimeType or fileName
+
       const mimeType = att.mimeType || ""
       const fileName = att.fileName || att.name || ""
       const lowerName = fileName.toLowerCase()
-      
+
       let kind: "image" | "pdf" | "file" = "file"
-      if (mimeType.startsWith("image/") || lowerName.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) {
+      if (
+        mimeType.startsWith("image/") ||
+        lowerName.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)
+      ) {
         kind = "image"
       } else if (mimeType === "application/pdf" || lowerName.endsWith(".pdf")) {
         kind = "pdf"
       }
-      
+
       return {
         kind,
         name: att.fileName || att.name || "Unknown",
         mimeType: att.mimeType,
       }
     })
-    
-    // Merge with local attachments if any
+
     const localAttachments = localAttachmentsById[item.id]
-    const finalAttachments = localAttachments 
+    const finalAttachments = localAttachments
       ? [...(transformedAttachments || []), ...localAttachments]
       : transformedAttachments
-    
+
     setSelected({ ...item, attachments: finalAttachments })
     setOpen(true)
   }
@@ -134,7 +162,6 @@ export function DashboardFeed() {
       const isPdf = lower.endsWith(".pdf") || f.type === "application/pdf"
       const isImg = f.type.startsWith("image/")
 
-      // previewUrl via objectURL (demo mode)
       const previewUrl = URL.createObjectURL(f)
 
       if (isImg) return { kind: "image", name: f.name, previewUrl }
@@ -159,13 +186,13 @@ export function DashboardFeed() {
   }
 
   if (error) return <p className="text-sm text-red-500">{error}</p>
-  if (!items.length) return <p className="text-muted-foreground text-sm">No knowledge items yet.</p>
+  if (!items.length)
+    return <p className="text-muted-foreground text-sm">No knowledge items yet.</p>
 
   return (
     <>
       <div className="space-y-4">
         {items.map((item) => {
-          // Only ADMINs may see the delete button in the UI.
           const effectiveRole: Role = myRole ?? "EMPLOYEE"
           const canShowDelete = canDelete(effectiveRole)
 
@@ -192,14 +219,14 @@ export function DashboardFeed() {
                       {item.impact}
                     </Badge>
 
-                    {/* Delete button – ADMIN only (API enforces its own rules) */}
                     {canShowDelete ? (
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleDelete(item.id)
+                          setDeleteTargetId(item.id)
+                          setDeleteOpen(true)
                         }}
                         title="Delete (admin only)"
                       >
@@ -227,6 +254,7 @@ export function DashboardFeed() {
                 </div>
 
                 {/* Demo-only local attachment picker (client preview only) */}
+                {/*
                 <div onClick={(e) => e.stopPropagation()} className="pt-2">
                   <label className="text-xs text-muted-foreground">Attach files (demo preview)</label>
                   <input
@@ -236,7 +264,7 @@ export function DashboardFeed() {
                     accept="image/*,application/pdf"
                     onChange={(e) => addLocalFiles(item.id, e.target.files)}
                   />
-                </div>
+                </div>*/}
               </CardContent>
             </Card>
           )
@@ -250,6 +278,38 @@ export function DashboardFeed() {
         hrEmail={hrEmail}
         role={myRole ?? "EMPLOYEE"}
       />
+
+      {/* ADMIN delete confirmation dialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete knowledge item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The knowledge item will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteTargetId(null)
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (deleteTargetId) {
+                  await handleDeleteConfirmed(deleteTargetId)
+                }
+                setDeleteTargetId(null)
+                setDeleteOpen(false)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

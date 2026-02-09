@@ -5,7 +5,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 
-// 👉 this is the feed component your AI already created
+
 import { DashboardFeed } from "@/components/dashboard/dashboard-feed"
 
 export default function Page() {

@@ -45,7 +45,7 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
@@ -64,7 +64,7 @@ const data = {
       icon: IconFolder,
     },
     {
-      title: "Team",
+      title: "Community",
       url: "#",
       icon: IconUsers,
     },
@@ -130,7 +130,7 @@ const data = {
     },
     {
       title: "Search",
-      url: "#",
+      url: "/dashboard/search",
       icon: IconSearch,
     },
   ],
@@ -204,7 +204,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
+              <a href="/dashboard">
                 <GalleryVerticalEnd className="size-4" />
                 <span className="text-base font-semibold">Cranberry</span>
               </a>

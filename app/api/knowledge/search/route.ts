@@ -1,29 +1,62 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
-import { getCurrentUser } from "@/lib/auth"
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
-  const user = await getCurrentUser()
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { searchParams } = new URL(req.url);
+  const rawQ = (searchParams.get("q") || "").trim();
 
-  const { searchParams } = new URL(req.url)
-  const q = (searchParams.get("q") ?? "").trim()
-  if (!q) return NextResponse.json({ items: [] })
+  // Empty query: return latest (or empty)
+  if (!rawQ) {
+    const items = await prisma.knowledgeItem.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { author: { select: { email: true, name: true } }, attachments: true },
+    });
+    return NextResponse.json({ ok: true, items });
+  }
+
+  const q = rawQ.toLowerCase();
+
+  // For "tag:IT" style (optional)
+  const tagPrefix = q.startsWith("tag:");
+  const tagQuery = tagPrefix ? q.replace("tag:", "").trim() : null;
 
   const items = await prisma.knowledgeItem.findMany({
     where: {
       OR: [
-        { title: { contains: q, mode: "insensitive" } },
-        { summary: { contains: q, mode: "insensitive" } },
-        { tags: { has: q } },
-      ],
+        { title: { contains: rawQ, mode: "insensitive" } },
+        { summary: { contains: rawQ, mode: "insensitive" } },
+        { content: { contains: rawQ, mode: "insensitive" } },
+
+        // tags: exact match OR partial match (Mongo/Prisma supports has/hasSome)
+        // Exact tag match (case-sensitive in DB usually), so we also do partial via contains in memory if needed.
+        tagQuery
+          ? { tags: { has: tagQuery } }
+          : { tags: { has: rawQ } },
+
+        // Author search
+        { author: { is: { email: { contains: rawQ, mode: "insensitive" } } } },
+        { author: { is: { name: { contains: rawQ, mode: "insensitive" } } } },
+      ].filter(Boolean) as any,
     },
     orderBy: { createdAt: "desc" },
-    take: 20,
-    include: {
-      author: { select: { email: true, name: true, avatar: true } },
-    },
-  })
+    take: 50,
+    include: { author: { select: { email: true, name: true } }, attachments: true },
+  });
 
-  return NextResponse.json({ items })
+  // Optional: if you want partial tag matching reliably (e.g. q="it" should match tag "IT"),
+  // do a secondary filter in JS because Prisma tag "has" is exact:
+  const refined = items.filter((it) => {
+    const tags = (it.tags || []).map((t: string) => (t || "").toLowerCase());
+    return (
+      it.title?.toLowerCase().includes(q) ||
+      it.summary?.toLowerCase().includes(q) ||
+      it.content?.toLowerCase().includes(q) ||
+      tags.some((t) => t.includes(q)) ||
+      it.author?.email?.toLowerCase().includes(q) ||
+      it.author?.name?.toLowerCase().includes(q)
+    );
+  });
+
+  return NextResponse.json({ ok: true, items: refined });
 }
